@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Churn Prediction</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px #ccc; max-width: 600px; margin: auto; }
+        h1 { color: #333; }
+        button, select { padding: 10px 20px; margin: 10px 0; font-size: 16px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #f0f0f0; }
+        #metrics-table { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Customer Churn Prediction</h1>
+    <button id="train-btn">Train Model</button>
+    <button id="view-metrics-btn">View Metrics</button>
+    <div id="metrics-section" style="display:none;">
+        <label for="model-select">Select Model:</label>
+        <select id="model-select"></select>
+        <table id="metrics-table">
+            <thead><tr id="metrics-header"></tr></thead>
+            <tbody><tr id="metrics-row"></tr></tbody>
+        </table>
+    </div>
+    <div id="message"></div>
+</div>
+<script>
+    document.getElementById('train-btn').onclick = function() {
+        document.getElementById('message').innerText = 'Training in progress...';
+        fetch('/train', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('message').innerText = data.message;
+            });
+    };
+    document.getElementById('view-metrics-btn').onclick = function() {
+        fetch('/metrics')
+            .then(r => r.json())
+            .then(data => {
+                let select = document.getElementById('model-select');
+                select.innerHTML = '';
+                for (let model of data.models) {
+                    let opt = document.createElement('option');
+                    opt.value = model;
+                    opt.innerText = model;
+                    select.appendChild(opt);
+                }
+                document.getElementById('metrics-section').style.display = 'block';
+                select.onchange();
+            });
+    };
+    document.getElementById('model-select').onchange = function() {
+        let model = this.value;
+        fetch('/metrics?model=' + model)
+            .then(r => r.json())
+            .then(data => {
+                let header = document.getElementById('metrics-header');
+                let row = document.getElementById('metrics-row');
+                header.innerHTML = '';
+                row.innerHTML = '';
+                for (let key in data.metrics) {
+                    header.innerHTML += `<th>${key}</th>`;
+                    let val = data.metrics[key];
+                    if (Array.isArray(val)) val = JSON.stringify(val);
+                    row.innerHTML += `<td>${val}</td>`;
+                }
+                document.getElementById('metrics-table').style.display = 'table';
+            });
+    };
+</script>
+</body>
+</html>
