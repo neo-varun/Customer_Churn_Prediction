@@ -9,6 +9,7 @@ import pandas as pd
 from src.feature_engineering import FeatureEngineering
 from src.data_preprocessing import DataPreprocessing
 from src.model_training import ModelTraining
+import shap
 
 app = Flask(__name__, template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates')))
 
@@ -67,6 +68,79 @@ def metrics():
     if model not in all_metrics:
         return jsonify({'metrics': {}})
     return jsonify({'metrics': all_metrics[model]})
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
+    model_name = data.get('model')
+    input_data = data.get('input')
+    # Prepare DataFrame for a single row
+    columns = [
+        'gender', 'SeniorCitizen', 'Partner', 'Dependents', 'tenure', 'PhoneService',
+        'MultipleLines', 'InternetService', 'OnlineSecurity', 'OnlineBackup',
+        'DeviceProtection', 'TechSupport', 'StreamingTV', 'StreamingMovies',
+        'Contract', 'PaperlessBilling', 'PaymentMethod', 'MonthlyCharges', 'TotalCharges',
+        'tenure_group', 'total_services', 'is_senior', 'has_family', 'avg_monthly_charge',
+        'is_long_term_contract', 'has_streaming', 'has_support_or_security', 'payment_type'
+    ]
+    # If frontend sends only raw.csv fields, do feature engineering
+    fe = FeatureEngineering()
+    df = pd.DataFrame([input_data])
+    df = fe.handle_missing_values(df)
+    df = fe.add_valuable_features(df)
+    # Drop customerID if present
+    df = df.drop(columns=['customerID'], errors='ignore')
+    # Preprocessing
+    dp = DataPreprocessing()
+    with open(dp.config.preprocessor_obj_file_path, 'rb') as f:
+        preprocessor = pickle.load(f)
+    X_processed = preprocessor.transform(df)
+    # Load model
+    model_path = os.path.join('models', f'{model_name}.pkl')
+    with open(model_path, 'rb') as f:
+        model = pickle.load(f)
+    proba = model.predict_proba(X_processed)[0, 1]
+    pred = model.predict(X_processed)[0]
+    churn_label = 'Yes' if pred == 1 else 'No'
+    # SHAP explanation
+    if model_name == 'xgboost' or model_name == 'random_forest':
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_processed)
+        # Debug: print SHAP values shape and sample
+        print('SHAP values type:', type(shap_values))
+        if isinstance(shap_values, list):
+            print('SHAP values[1] shape:', getattr(shap_values[1], 'shape', None))
+            print('SHAP values[1][0] sample:', shap_values[1][0][:5])
+            shap_row = shap_values[1][0]  # class 1, first row
+        else:
+            print('SHAP values shape:', getattr(shap_values, 'shape', None))
+            print('SHAP values[0] sample:', shap_values[0][:5])
+            # For shape (1, n_features, 2): [sample, feature, class]
+            if len(shap_values.shape) == 3 and shap_values.shape[2] == 2:
+                shap_row = shap_values[0, :, 1]  # class 1, first row
+            else:
+                shap_row = shap_values[0]  # fallback
+        feature_names = preprocessor.get_feature_names_out()
+        shap_dict = sorted(zip(feature_names, shap_row), key=lambda x: abs(x[1]), reverse=True)[:5]
+    else:  # logistic_regression
+        # Use training data as background for SHAP
+        train_path = os.path.join('data', 'processed', 'train.csv')
+        train_df = pd.read_csv(train_path)
+        train_df = fe.handle_missing_values(train_df)
+        train_df = fe.add_valuable_features(train_df)
+        train_df = train_df.drop(columns=['customerID'], errors='ignore')
+        X_train_bg = preprocessor.transform(train_df)
+        explainer = shap.LinearExplainer(model, X_train_bg, feature_perturbation="interventional")
+        shap_values = explainer.shap_values(X_processed)
+        shap_row = shap_values[0] if len(shap_values.shape) == 2 else shap_values
+        feature_names = preprocessor.get_feature_names_out()
+        shap_dict = sorted(zip(feature_names, shap_row), key=lambda x: abs(x[1]), reverse=True)[:5]
+    shap_explanation = [{'feature': k, 'value': float(v)} for k, v in shap_dict]
+    return jsonify({
+        'churn': churn_label,
+        'probability': float(proba),
+        'shap': shap_explanation
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)

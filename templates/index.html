@@ -28,6 +28,21 @@
         </table>
     </div>
     <div id="message"></div>
+
+    <div id="predict-section" style="margin-top:30px;">
+        <h2>Predict Churn for a Customer</h2>
+        <form id="predict-form">
+            <div id="input-fields"></div>
+            <label for="predict-model-select">Select Model:</label>
+            <select id="predict-model-select">
+                <option value="logistic_regression">Logistic Regression</option>
+                <option value="random_forest">Random Forest</option>
+                <option value="xgboost">XGBoost</option>
+            </select>
+            <button type="submit">Predict</button>
+        </form>
+        <div id="predict-result" style="margin-top:20px;"></div>
+    </div>
 </div>
 <script>
     document.getElementById('train-btn').onclick = function() {
@@ -71,6 +86,75 @@
                 }
                 document.getElementById('metrics-table').style.display = 'table';
             });
+    };
+
+    // --- Dynamic input fields for prediction ---
+    const predictFields = [
+        {name: 'gender', type: 'select', options: ['Male', 'Female']},
+        {name: 'SeniorCitizen', type: 'select', options: ['0', '1']},
+        {name: 'Partner', type: 'select', options: ['Yes', 'No']},
+        {name: 'Dependents', type: 'select', options: ['Yes', 'No']},
+        {name: 'tenure', type: 'number'},
+        {name: 'PhoneService', type: 'select', options: ['Yes', 'No']},
+        {name: 'MultipleLines', type: 'select', options: ['Yes', 'No', 'No phone service']},
+        {name: 'InternetService', type: 'select', options: ['DSL', 'Fiber optic', 'No']},
+        {name: 'OnlineSecurity', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'OnlineBackup', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'DeviceProtection', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'TechSupport', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'StreamingTV', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'StreamingMovies', type: 'select', options: ['Yes', 'No', 'No internet service']},
+        {name: 'Contract', type: 'select', options: ['Month-to-month', 'One year', 'Two year']},
+        {name: 'PaperlessBilling', type: 'select', options: ['Yes', 'No']},
+        {name: 'PaymentMethod', type: 'select', options: ['Electronic check', 'Mailed check', 'Bank transfer (automatic)', 'Credit card (automatic)']},
+        {name: 'MonthlyCharges', type: 'number'},
+        {name: 'TotalCharges', type: 'number'}
+    ];
+    const inputFieldsDiv = document.getElementById('input-fields');
+    predictFields.forEach(field => {
+        let label = document.createElement('label');
+        label.innerText = field.name + ': ';
+        let input;
+        if (field.type === 'select') {
+            input = document.createElement('select');
+            field.options.forEach(opt => {
+                let o = document.createElement('option');
+                o.value = opt;
+                o.innerText = opt;
+                input.appendChild(o);
+            });
+        } else {
+            input = document.createElement('input');
+            input.type = field.type;
+        }
+        input.name = field.name;
+        input.required = true;
+        label.appendChild(input);
+        inputFieldsDiv.appendChild(label);
+        inputFieldsDiv.appendChild(document.createElement('br'));
+    });
+    document.getElementById('predict-form').onsubmit = function(e) {
+        e.preventDefault();
+        let form = e.target;
+        let input = {};
+        predictFields.forEach(field => {
+            input[field.name] = form[field.name].value;
+        });
+        let model = document.getElementById('predict-model-select').value;
+        fetch('/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model, input})
+        })
+        .then(r => r.json())
+        .then(data => {
+            let html = `<b>Churn:</b> ${data.churn}<br><b>Probability:</b> ${(data.probability*100).toFixed(2)}%<br><b>Top SHAP Features:</b><ul>`;
+            data.shap.forEach(f => {
+                html += `<li>${f.feature}: ${f.value.toFixed(4)}</li>`;
+            });
+            html += '</ul>';
+            document.getElementById('predict-result').innerHTML = html;
+        });
     };
 </script>
 </body>
