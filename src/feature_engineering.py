@@ -53,10 +53,3 @@ class FeatureEngineering:
         # Payment method type (extract main type)
         df['payment_type'] = df['PaymentMethod'].str.extract(r'^(\w+)')[0].str.lower()
         return df
-
-# Example usage:
-# df = pd.read_csv('data/raw/raw.csv')
-# fe = FeatureEngineering()
-# df = fe.handle_missing_values(df)
-# df = fe.add_valuable_features(df)
-# df.to_csv('data/processed/engineered.csv', index=False)

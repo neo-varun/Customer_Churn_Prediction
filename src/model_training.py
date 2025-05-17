@@ -7,12 +7,15 @@ import optuna
 import xgboost as xgb
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
+import mlflow
+import mlflow.sklearn
 
 class ModelTraining:
     def __init__(self, evaluator=None):
         from .evaluate import Evaluator
         self.evaluator = evaluator or Evaluator()
         os.makedirs('models', exist_ok=True)
+        mlflow.set_experiment('CustomerChurnPrediction')
 
     def train_logistic_regression(self, X_train, y_train, X_test, y_test):
         def objective(trial):
@@ -26,10 +29,14 @@ class ModelTraining:
         study.optimize(objective, n_trials=20)
         best_params = study.best_params
         model = LogisticRegression(**best_params, max_iter=1000)
-        model.fit(X_train, y_train)
-        preds = model.predict(X_test)
-        proba = model.predict_proba(X_test)[:, 1]
-        metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+        with mlflow.start_run(run_name='LogisticRegression'):
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            proba = model.predict_proba(X_test)[:, 1]
+            metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+            mlflow.log_params(best_params)
+            mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float)) and k != 'confusion_matrix'})
+            mlflow.sklearn.log_model(model, 'model')
         with open('models/logistic_regression.pkl', 'wb') as f:
             pickle.dump(model, f)
         return metrics
@@ -46,10 +53,14 @@ class ModelTraining:
         study.optimize(objective, n_trials=20)
         best_params = study.best_params
         model = RandomForestClassifier(**best_params, random_state=42)
-        model.fit(X_train, y_train)
-        preds = model.predict(X_test)
-        proba = model.predict_proba(X_test)[:, 1]
-        metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+        with mlflow.start_run(run_name='RandomForest'):
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            proba = model.predict_proba(X_test)[:, 1]
+            metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+            mlflow.log_params(best_params)
+            mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float)) and k != 'confusion_matrix'})
+            mlflow.sklearn.log_model(model, 'model')
         with open('models/random_forest.pkl', 'wb') as f:
             pickle.dump(model, f)
         return metrics
@@ -76,10 +87,14 @@ class ModelTraining:
         best_params = study.best_params
         best_params.update({'objective': 'binary:logistic', 'eval_metric': 'logloss', 'use_label_encoder': False, 'random_state': 42})
         model = xgb.XGBClassifier(**best_params)
-        model.fit(X_train, y_train)
-        preds = model.predict(X_test)
-        proba = model.predict_proba(X_test)[:, 1]
-        metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+        with mlflow.start_run(run_name='XGBoost'):
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            proba = model.predict_proba(X_test)[:, 1]
+            metrics = self.evaluator.evaluate_model(y_test, preds, proba)
+            mlflow.log_params(best_params)
+            mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float)) and k != 'confusion_matrix'})
+            mlflow.sklearn.log_model(model, 'model')
         with open('models/xgboost.pkl', 'wb') as f:
             pickle.dump(model, f)
         return metrics
