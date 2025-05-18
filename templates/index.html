@@ -3,25 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <title>Customer Churn Prediction</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
-        .container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px #ccc; max-width: 600px; margin: auto; }
-        h1 { color: #333; }
-        button, select { padding: 10px 20px; margin: 10px 0; font-size: 16px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background: #f0f0f0; }
-        #metrics-table { display: none; }
+        :root {
+            --primary: #4f8cff;
+            --primary-dark: #2563eb;
+            --bg: #f4f7fa;
+            --white: #fff;
+            --gray: #e5e7eb;
+            --text: #22223b;
+            --shadow: 0 4px 24px 0 rgba(80, 112, 255, 0.08);
+            --radius: 16px;
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .container {
+            background: var(--white);
+            padding: 40px 32px 32px 32px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            max-width: 900px; /* Increased width */
+            margin: 48px auto 0 auto;
+            position: relative;
+        }
+        h1 {
+            color: var(--primary-dark);
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            letter-spacing: -1px;
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 2rem; /* Increased font size */
+            margin-top: 32px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        button, select, input[type="number"] {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--gray);
+            font-size: 1rem;
+            font-family: inherit;
+            margin: 8px 0 0 0;
+            transition: box-shadow 0.2s, border 0.2s;
+        }
+        button {
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 12px;
+            box-shadow: 0 2px 8px rgba(79, 140, 255, 0.08);
+        }
+        button:hover {
+            background: var(--primary-dark);
+        }
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border: 1.5px solid var(--primary);
+            box-shadow: 0 0 0 2px #4f8cff22;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 2px;
+            font-weight: 500;
+            color: #444;
+        }
+        #metrics-section {
+            margin-top: 28px;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 18px 18px 10px 18px;
+            box-shadow: 0 2px 8px #e5e7eb44;
+        }
+        #model-select {
+            min-width: 220px;
+            margin-bottom: 10px;
+        }
+        .custom-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%234f8cff" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px 18px;
+            padding-right: 38px;
+        }
+        #metrics-table {
+            display: none;
+            width: 100%;
+            margin-top: 18px;
+            background: var(--white);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px #e5e7eb33;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        #metrics-table th, #metrics-table td {
+            padding: 14px 16px;
+            text-align: center;
+            font-size: 1.08rem;
+        }
+        #metrics-table th {
+            background: var(--primary);
+            color: var(--white);
+            font-weight: 600;
+            border-bottom: 2px solid var(--gray);
+        }
+        #metrics-table td {
+            background: #f9fafb;
+            color: #333;
+        }
+        #message {
+            margin-top: 18px;
+            font-size: 1.08rem;
+            color: var(--primary-dark);
+            font-weight: 500;
+            min-height: 24px;
+        }
+        #predict-section {
+            margin-top: 18px; /* was 36px, now reduced */
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1px 18px 18px 18px;
+            box-shadow: 0 2px 8px #e5e7eb44;
+        }
+        #predict-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px 32px; /* More space between fields */
+        }
+        #input-fields {
+            flex: 1 1 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 18px;
+        }
+        #input-fields label {
+            display: flex;
+            flex-direction: column;
+            min-width: 220px;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #444;
+            white-space: normal;
+        }
+        #input-fields label span {
+            margin-bottom: 4px;
+            word-break: break-word;
+            letter-spacing: 0.01em;
+        }
+        #predict-form select, #predict-form input[type="number"] {
+            padding: 14px 38px 14px 18px; /* extra right padding for arrow */
+            border-radius: 8px;
+            border: 1.5px solid var(--gray);
+            font-size: 1.08rem;
+            margin-top: 6px;
+            margin-bottom: 0;
+            min-width: 180px;
+            background: #f9fafb;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%234f8cff" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px 18px;
+        }
+        #predict-form button {
+            margin-top: 0;
+            min-width: 160px;
+            align-self: flex-end;
+            height: 48px;
+        }
+        #predict-form-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            gap: 18px;
+            margin-top: 10px;
+        }
+        @media (max-width: 900px) {
+            .container {
+                max-width: 98vw;
+            }
+            #predict-form {
+                gap: 18px 10px;
+            }
+            #input-fields label {
+                min-width: 140px;
+            }
+            #predict-form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        @media (max-width: 700px) {
+            .container {
+                padding: 18px 4vw 18px 4vw;
+                max-width: 98vw;
+            }
+            #input-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+        ::selection {
+            background: #c7dfff;
+        }
+        /* Custom select dropdown styling */
+        .custom-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%234f8cff" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px 18px;
+            padding-right: 38px;
+        }
+        .custom-number {
+            appearance: textfield;
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+            background-image: none !important;
+            padding-right: 18px;
+        }
+        /* Remove number input spinners for Chrome, Safari, Edge */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* Remove number input spinners for Firefox */
+        input[type=number] {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+        .custom-shap-list {
+            margin: 8px 0 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .custom-shap-list li {
+            background: #f1f5fd;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            padding: 7px 12px 7px 10px;
+            font-size: 1.01rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+        }
+        .custom-shap-list li b {
+            color: #2563eb;
+            margin-right: 8px;
+        }
+        .churn-yes {
+            color: #e11d48;
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+        .churn-no {
+            color: #059669;
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+        .probability {
+            color: #4f8cff;
+            font-weight: 600;
+            font-size: 1.08rem;
+        }
+        .predict-output-label {
+            font-weight: 600;
+            color: #22223b;
+            margin-right: 6px;
+        }
+        #predict-result {
+            margin-top: 18px;
+            background: #e0f2fe;
+            border-radius: 8px;
+            padding: 18px 22px 14px 22px;
+            color: #0c3a5d;
+            font-size: 1.12rem;
+            box-shadow: 0 1px 4px #bae6fd44;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>Customer Churn Prediction</h1>
-    <button id="train-btn">Train Model</button>
-    <button id="view-metrics-btn">View Metrics</button>
+    <div style="display: flex; gap: 12px; margin-bottom: 18px;">
+        <button id="train-btn">Train Model</button>
+        <button id="view-metrics-btn">View Metrics</button>
+    </div>
     <div id="metrics-section" style="display:none;">
         <label for="model-select">Select Model:</label>
-        <select id="model-select"></select>
+        <select id="model-select" class="custom-select"></select>
         <table id="metrics-table">
             <thead><tr id="metrics-header"></tr></thead>
             <tbody><tr id="metrics-row"></tr></tbody>
@@ -29,19 +322,23 @@
     </div>
     <div id="message"></div>
 
-    <div id="predict-section" style="margin-top:30px;">
+    <div id="predict-section">
         <h2>Predict Churn for a Customer</h2>
         <form id="predict-form">
             <div id="input-fields"></div>
-            <label for="predict-model-select">Select Model:</label>
-            <select id="predict-model-select">
-                <option value="logistic_regression">Logistic Regression</option>
-                <option value="random_forest">Random Forest</option>
-                <option value="xgboost">XGBoost</option>
-            </select>
-            <button type="submit">Predict</button>
+            <div id="predict-form-row">
+                <label for="predict-model-select" style="margin-top: 0; margin-bottom: 0;">
+                    <span>Select Model:</span>
+                    <select id="predict-model-select">
+                        <option value="logistic_regression">Logistic Regression</option>
+                        <option value="random_forest">Random Forest</option>
+                        <option value="xgboost">XGBoost</option>
+                    </select>
+                </label>
+                <button type="submit">Predict</button>
+            </div>
         </form>
-        <div id="predict-result" style="margin-top:20px;"></div>
+        <div id="predict-result"></div>
     </div>
 </div>
 <script>
@@ -59,10 +356,11 @@
             .then(data => {
                 let select = document.getElementById('model-select');
                 select.innerHTML = '';
+                select.className = 'custom-select'; // Use same dropdown style as predict
                 for (let model of data.models) {
                     let opt = document.createElement('option');
                     opt.value = model;
-                    opt.innerText = model;
+                    opt.innerText = model.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                     select.appendChild(opt);
                 }
                 document.getElementById('metrics-section').style.display = 'block';
@@ -79,8 +377,9 @@
                 header.innerHTML = '';
                 row.innerHTML = '';
                 for (let key in data.metrics) {
-                    header.innerHTML += `<th>${key}</th>`;
+                    header.innerHTML += `<th>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</th>`;
                     let val = data.metrics[key];
+                    if (typeof val === 'number') val = val.toFixed(2);
                     if (Array.isArray(val)) val = JSON.stringify(val);
                     row.innerHTML += `<td>${val}</td>`;
                 }
@@ -89,12 +388,12 @@
     };
 
     // --- Dynamic input fields for prediction ---
+    // Place all numerical fields at the end
     const predictFields = [
         {name: 'gender', type: 'select', options: ['Male', 'Female']},
-        {name: 'SeniorCitizen', type: 'select', options: ['0', '1']},
+        {name: 'SeniorCitizen', type: 'select', options: ['Yes', 'No']},
         {name: 'Partner', type: 'select', options: ['Yes', 'No']},
         {name: 'Dependents', type: 'select', options: ['Yes', 'No']},
-        {name: 'tenure', type: 'number'},
         {name: 'PhoneService', type: 'select', options: ['Yes', 'No']},
         {name: 'MultipleLines', type: 'select', options: ['Yes', 'No', 'No phone service']},
         {name: 'InternetService', type: 'select', options: ['DSL', 'Fiber optic', 'No']},
@@ -107,13 +406,19 @@
         {name: 'Contract', type: 'select', options: ['Month-to-month', 'One year', 'Two year']},
         {name: 'PaperlessBilling', type: 'select', options: ['Yes', 'No']},
         {name: 'PaymentMethod', type: 'select', options: ['Electronic check', 'Mailed check', 'Bank transfer (automatic)', 'Credit card (automatic)']},
+        // Numerical fields at the end
+        {name: 'tenure', type: 'number'},
         {name: 'MonthlyCharges', type: 'number'},
         {name: 'TotalCharges', type: 'number'}
     ];
     const inputFieldsDiv = document.getElementById('input-fields');
+    inputFieldsDiv.innerHTML = '';
     predictFields.forEach(field => {
         let label = document.createElement('label');
-        label.innerText = field.name + ': ';
+        let labelText = document.createElement('span');
+        // Add spaces between camel case or Pascal case words, remove colon
+        labelText.innerText = field.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        label.appendChild(labelText);
         let input;
         if (field.type === 'select') {
             input = document.createElement('select');
@@ -123,15 +428,19 @@
                 o.innerText = opt;
                 input.appendChild(o);
             });
+            // Only add dropdown arrow style for selects
+            input.classList.add('custom-select');
         } else {
             input = document.createElement('input');
-            input.type = field.type;
+            input.type = 'number';
+            input.min = 0;
+            input.step = 'any';
+            input.classList.add('custom-number');
         }
         input.name = field.name;
         input.required = true;
         label.appendChild(input);
         inputFieldsDiv.appendChild(label);
-        inputFieldsDiv.appendChild(document.createElement('br'));
     });
     document.getElementById('predict-form').onsubmit = function(e) {
         e.preventDefault();
@@ -141,6 +450,7 @@
             input[field.name] = form[field.name].value;
         });
         let model = document.getElementById('predict-model-select').value;
+        document.getElementById('predict-result').innerHTML = '<span style="color:#2563eb;">Predicting...</span>';
         fetch('/predict', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -148,9 +458,17 @@
         })
         .then(r => r.json())
         .then(data => {
-            let html = `<b>Churn:</b> ${data.churn}<br><b>Probability:</b> ${(data.probability*100).toFixed(2)}%<br><b>Top SHAP Features:</b><ul>`;
+            let churnLabel = data.churn === 'Yes' ? 'Probability of Churn (Yes)' : 'Probability of Churn (No)';
+            let churnClass = data.churn === 'Yes' ? 'churn-yes' : 'churn-no';
+            let html = `<div style='display:flex;align-items:center;gap:12px;margin-bottom:10px;'>
+                <div style='font-size:1.18rem;font-weight:600;'>Churn Prediction:</div>
+                <div class='${churnClass}' style='font-size:1.25rem;'>${data.churn}</div>
+            </div>`;
+            html += `<div style='margin-bottom:10px;'><span class='predict-output-label'>${churnLabel}:</span> <span class='probability'>${(data.probability*100).toFixed(2)}%</span></div>`;
+            html += `<div class='predict-output-label' style='margin-top:10px;margin-bottom:4px;'>Top SHAP Features:</div>`;
+            html += `<ul class='custom-shap-list'>`;
             data.shap.forEach(f => {
-                html += `<li>${f.feature}: ${f.value.toFixed(4)}</li>`;
+                html += `<li><b>${f.feature}</b> <span>${f.value.toFixed(4)}</span></li>`;
             });
             html += '</ul>';
             document.getElementById('predict-result').innerHTML = html;

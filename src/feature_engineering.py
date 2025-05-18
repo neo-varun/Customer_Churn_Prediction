@@ -37,8 +37,8 @@ class FeatureEngineering:
             'OnlineBackup', 'DeviceProtection', 'TechSupport', 'StreamingTV', 'StreamingMovies'
         ]
         df['total_services'] = df[service_cols].apply(lambda x: sum(x == 'Yes'), axis=1)
-        # Is senior citizen (already binary, but ensure type)
-        df['is_senior'] = df['SeniorCitizen'].astype(int)
+        # Is senior citizen (handle 'Yes'/'No' string input, fillna for unexpected/missing values)
+        df['is_senior'] = df['SeniorCitizen'].map({'Yes': 1, 'No': 0}).fillna(0).astype(int)
         # Has dependents and partner (interaction)
         df['has_family'] = ((df['Partner'] == 'Yes') & (df['Dependents'] == 'Yes')).astype(int)
         # Average monthly charge (handle division by zero)
